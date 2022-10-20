@@ -18,6 +18,18 @@ public class Movement : MonoBehaviour
     // Inputs
     [Header("Input Options")]
     public string jumpInput;
+    // Booleans
+    [Header("Booleans")]
+    // Is on Ground check
+    public bool onGorund;
+    //offset
+    [Header("Collisions Option")]
+    public LayerMask groundLayer;
+    public float collisionRadius = 0.25f;
+    [Header("Offsets")]
+    public Vector2 bottomOffset;
+    private Color debugCollisionColor = Color.red;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -27,6 +39,9 @@ public class Movement : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
+        // checks
+        onGorund = Physics2D.OverlapCircle((Vector2)transform.position + bottomOffset, collisionRadius, groundLayer);
+        // Mechanics
         Jump();
     }
     void FixedUpdate()
@@ -35,13 +50,13 @@ public class Movement : MonoBehaviour
     }
     /// <summary>
     /// Jump Function
-    /// Every frame we are going to check Player's Input
+    /// Every frame we are going to check Player's Input and if onGround
     /// If the player press [jumpInput]
     ///     Then apply to vector up a force [jumpVelocity]
     /// </summary>
     void Jump()
     {
-        if (Input.GetButtonDown(jumpInput))
+        if (Input.GetButtonDown(jumpInput) && onGorund)
         {
             GetComponent<Rigidbody2D>().velocity = Vector2.up * jumpVelocity;
         }
@@ -63,5 +78,10 @@ public class Movement : MonoBehaviour
         {
             rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1) * Time.deltaTime;
         }
+    }
+    void OnDrawGizmos()
+    {
+        Gizmos.color = debugCollisionColor;
+        Gizmos.DrawWireSphere((Vector2)transform.position + bottomOffset, collisionRadius);
     }
 }
