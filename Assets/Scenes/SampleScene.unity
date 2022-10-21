@@ -137,7 +137,7 @@ GameObject:
   - component: {fileID: 345480090}
   - component: {fileID: 345480089}
   m_Layer: 0
-  m_Name: Square (1)
+  m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -156,10 +156,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rb: {fileID: 0}
+  canMove: 1
+  canJump: 1
+  walkVelocity: 5
   jumpVelocity: 5
   fallMultiplier: 2.5
   lowJumpMultiplier: 2
-  jumpInput: 32
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  collisionRadius: 0.25
+  bottomOffset: {x: 0, y: -0.5}
+  jumpAxis: Jump
+  xAxis: Horizontal
+  canWalkNow: 0
+  canJumpNow: 0
+  onGorund: 0
 --- !u!50 &345480090
 Rigidbody2D:
   serializedVersion: 4
@@ -369,7 +381,7 @@ GameObject:
   - component: {fileID: 1063994621}
   - component: {fileID: 1063994620}
   - component: {fileID: 1063994619}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Square
   m_TagString: Untagged
   m_Icon: {fileID: 0}
