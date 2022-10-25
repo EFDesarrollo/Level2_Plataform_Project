@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,10 +9,11 @@ public class Movement : MonoBehaviour
     [HideInInspector]
     public Rigidbody2D rb;
     [Header("Stats")]
-    // power of walk
+    
+    /// <value>Reepresent power/Speed of walk.</value>
     public float speed = 10;
-    // Power of jump
-    public float jumpForce = 50;
+    /// <value>Reepresent Power of jump.</value>
+    public float jumpForce = 12;
     // Multiply gravity when character is falling down
     public float fallMultiplier = 2.5f;
     // When release jump button and are applying more gravity so our character dosen't jump quite as high.
@@ -27,9 +29,9 @@ public class Movement : MonoBehaviour
     [Header("Collisions Option")]
     public LayerMask groundLayer;
     public float collisionRadius = 0.25f;
-    public Vector2 bottomOffset = new Vector2(0, -0.5f);
-    public Vector2 leftOffset = new Vector2(-0.5f, 0);
-    public Vector2 rigthOffset = new Vector2(0.5f, 0);
+    public Vector2 bottomOffset = new Vector2(0, -0.3f);
+    public Vector2 leftOffset = new Vector2(-0.3f, 0);
+    public Vector2 rigthOffset = new Vector2(0.3f, 0);
     private Color debugCollisionColor = Color.red;
 
     [Header("Input Options")]
@@ -47,7 +49,6 @@ public class Movement : MonoBehaviour
     public bool wallGrab, wallSlide, wallJumped;
 
 
-
     // Start is called before the first frame update
     void Start()
     {
@@ -57,6 +58,9 @@ public class Movement : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
+        Vector3 wallDir = onRightWall ? Vector3.left : Vector3.right;
+        //Debug.DrawRay(transform.position, new Vector3(0, 0, 0) * (Vector2.up / 1.5f + wallDir / 1.5f), Color.green);
+        Debug.DrawRay(transform.position, Vector3.up / 1.5f + wallDir / 1.5f, Color.green);
         // checks
         onGround = Physics2D.OverlapCircle((Vector2)transform.position + bottomOffset, collisionRadius, groundLayer);
         onWall = Physics2D.OverlapCircle((Vector2)transform.position + leftOffset, collisionRadius, groundLayer) || Physics2D.OverlapCircle((Vector2)transform.position + rigthOffset, collisionRadius, groundLayer);
@@ -64,61 +68,44 @@ public class Movement : MonoBehaviour
         onRightWall = Physics2D.OverlapCircle((Vector2)transform.position + rigthOffset, collisionRadius, groundLayer);
         JumpImputDetect();
         WalkInputDetect();
-        if (onWall && Input.GetButton("Fire3") && canMove)
-        {
-            wallGrab = true;
-            wallSlide = false;
-        }
-        if (Input.GetButtonUp("Fire3") || !onWall || !canMove)
-        {
-            wallGrab = false;
-            wallSlide = false;
-        }
-        if (onWall && !onGround)
-        {
-            if (Input.GetAxis(xAxis) != 0 && !wallGrab)
-            {
-                wallSlide = true;
-                WallSlide();
-            }
-        }
-        if (onGround)
-        {
-            wallJumped = false;
-        }
-        if (!onWall || onGround)
-            wallSlide = false;
+        WallGrabInputDetect();
+        WallSlideDetect();
+        WallJumpedDetect();
+
         // Mechanics
-        WallGrab();
     }
     void FixedUpdate()
     {
         // Mechanics
+        WallGrab();
+        WallSlide();
+        Walk();
         if (onGround)
             Jump(Vector2.up, false);
-        if (onWall && !onGround)
+        if (onWall)
             WallJump();
-        Walk();
     }
+    #region Mechanics
     /// <summary>
-    /// Jump Imput Detect Function.
-    /// Every frame we are going to check Player's Input
-    ///     Then bollean [canWalkNow] will be true.
-    ///     This function communicates the [Input] of the user with the logic of the physics.
-    /// Because the [Input] checks are performed in the [Update] method while the physics are handled in the [FixedUpdate] method.
-    /// </summary>
-    void WalkInputDetect()
-    {
-        canWalkNow = Input.GetButton(xAxis);
-    }
-    /// <summary>
-    /// Walk Mechanic.
-    /// Everey Fixed frame we are going to check:
-    /// - If the player Can Walk (pressed Walk Input)
-    ///     Then modify Rigidbody velocity [walkVelocity] to vector X.
+    /// <para>Walk Mechanic.</para>
+    /// <para>Everey Fixed frame we are going to check:</para>
+    /// <list type="bullet">
+    ///     <item>If player <see cref="canMove"/></item>
+    ///     <item>If player is <see cref="wallGrab"/></item>
+    ///     <item>If not a <see cref="wallJumped"/></item>
+    ///     <list type="bullet">
+    ///         <item>If is allow <see cref="canWalkNow"/> (<see cref="WalkInputDetect"/>)</item>
+    ///         <item>Then modify the speed of the <see cref="Rigidbody"/> in the vector x giving a floating variable <see langword="speed"/>.</item>
+    ///         <item>Else set <see cref="Rigidbody"/> speed to 0</item>
+    ///     </list>
+    ///     <item>If is a <see cref="wallJumped"/></item>
+    ///     <item>Then modify the speed of the <see cref="Rigidbody"/> by a <see langword="Lerp"/>.</item>
+    /// </list>
     /// </summary>
     void Walk()
     {
+        // TODO: EXTRAER ESTA VARIABLE PARA QUE EL METODO SEA GLOBAL.
+        float x = Input.GetAxis(xAxis);
         if (!canMove)
             return;
         if (wallGrab)
@@ -126,33 +113,16 @@ public class Movement : MonoBehaviour
         if (!wallJumped)
         {
             if (canWalkNow)
-            {
-                //rb.AddForce(new Vector2(Input.GetAxis(xAxis) * walkVelocity, 0));
-                rb.velocity = new Vector2(Input.GetAxis(xAxis) * speed, rb.velocity.y);
-            }
+                rb.velocity = new Vector2(x * speed, rb.velocity.y);
             else
-            {
                 rb.velocity = new Vector2(0, rb.velocity.y);
-            }
         }
         else
-        {
-            rb.velocity = Vector2.Lerp(rb.velocity, (new Vector2(Input.GetAxis(xAxis) * speed, rb.velocity.y)), wallJumpLerp * Time.deltaTime);
-        }
+            rb.velocity = Vector2.Lerp(rb.velocity, (new Vector2(x * speed, rb.velocity.y)), wallJumpLerp * Time.deltaTime);
 
     }
-    /// <summary>
-    /// Jump Imput Detect Function.
-    /// Every frame we are going to check Player's Input
-    ///     Then bollean [canJumpNow] will be true.
-    /// This function communicates the [Input] of the user with the logic of the physics.
-    /// Because the [Input] checks are performed in the [Update] method while the physics are handled in the [FixedUpdate] method.
-    /// </summary>
-    void JumpImputDetect()
-    {
-        if (Input.GetButtonDown(jumpAxis))
-            canJumpNow = true;
-    }
+    #endregion
+
     /// <summary>
     /// Jump Feel.
     /// Everey Fixed frame we are going to check:
@@ -174,7 +144,7 @@ public class Movement : MonoBehaviour
         if (canJumpNow)
         {
             Debug.Log("Jumping");
-            GetComponent<Rigidbody2D>().AddForce(dir * jumpForce, ForceMode2D.Impulse);
+            GetComponent<Rigidbody2D>().AddForce(dir * (wallJumped? jumpForce*2: jumpForce), ForceMode2D.Impulse);
             canJumpNow = false;
         }
         if (rb.velocity.y < -0.2f)
@@ -195,15 +165,9 @@ public class Movement : MonoBehaviour
     /// </summary>
     private void WallJump()
     {
-        
-        //StopCoroutine(DisableMovement(0));
-        //StartCoroutine(DisableMovement(.1f));
-
         Vector2 wallDir = onRightWall ? Vector2.left : Vector2.right;
-
-        Jump((Vector2.up / 1.5f + wallDir / 1.5f), true);
-
-        wallJumped = true;
+        if (wallJumped && canJumpNow)
+            Jump((Vector2.up / 1.5f + wallDir / 1.5f), true);
     }
     /// <summary>
     /// 
@@ -231,7 +195,7 @@ public class Movement : MonoBehaviour
     {
         if (!canMove)
             return;
-        
+
         bool pushingWall = false;
         if ((rb.velocity.x > 0 && onRightWall) || (rb.velocity.x < 0 && onLeftWall))
         {
@@ -239,13 +203,92 @@ public class Movement : MonoBehaviour
         }
         float push = pushingWall ? 0 : rb.velocity.x;
 
-        rb.velocity = new Vector2(push, -slideSpeed);
+        if (wallSlide)
+        {
+
+            rb.velocity = new Vector2(push, -slideSpeed);
+        }
     }
     void OnDrawGizmos()
     {
+        
         Gizmos.color = debugCollisionColor;
         Gizmos.DrawWireSphere((Vector2)transform.position + bottomOffset, collisionRadius);
         Gizmos.DrawWireSphere((Vector2)transform.position + leftOffset, collisionRadius);
         Gizmos.DrawWireSphere((Vector2)transform.position + rigthOffset, collisionRadius);
+        
     }
+    #region Detect
+    /// <summary>
+    /// Jump Imput Detect Function.
+    /// Every frame we are going to check Player's Input
+    ///     Then bollean [canWalkNow] will be true.
+    ///     This function communicates the [Input] of the user with the logic of the physics.
+    /// Because the [Input] checks are performed in the [Update] method while the physics are handled in the [FixedUpdate] method.
+    /// </summary>
+    void WalkInputDetect()
+    {
+        canWalkNow = Input.GetButton(xAxis);
+    }
+    /// <summary>
+    /// Jump Imput Detect Function.
+    /// Every frame we are going to check Player's Input
+    ///     Then bollean [canJumpNow] will be true.
+    /// This function communicates the [Input] of the user with the logic of the physics.
+    /// Because the [Input] checks are performed in the [Update] method while the physics are handled in the [FixedUpdate] method.
+    /// </summary>
+    void JumpImputDetect()
+    {
+        if (Input.GetButtonDown(jumpAxis))
+        {
+            canJumpNow = true;
+            wallSlide = false;
+        }
+    }
+    /// <summary>
+    /// 
+    /// </summary>
+    void WallGrabInputDetect()
+    {
+        if (onWall && Input.GetButton("Fire3") && canMove)
+        {
+            wallGrab = true;
+            wallSlide = false;
+        }
+        if (Input.GetButtonUp("Fire3") || !onWall || !canMove)
+        {
+            wallGrab = false;
+            wallSlide = false;
+        }
+    }
+    /// <summary>
+    /// 
+    /// </summary>
+    void WallSlideDetect()
+    {
+        if (onWall && !onGround)
+        {
+            if (Input.GetAxis(xAxis) != 0 && !wallGrab)
+            {
+                wallSlide = true;
+            }
+        }
+        if (!onWall || onGround)
+            wallSlide = false;
+    }
+    /// <summary>
+    /// 
+    /// </summary>
+    void WallJumpedDetect()
+    {
+        if (onWall && !onGround)
+        {
+            wallJumped = true;
+        }
+        if (onGround)
+        {
+            wallJumped = false;
+        }
+    }
+    #endregion
 }
