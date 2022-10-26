@@ -14,11 +14,13 @@ public class Movement : MonoBehaviour
     public float speed = 10;
     /// <value>Reepresent Power of jump.</value>
     public float jumpForce = 12;
-    // Multiply gravity when character is falling down
+    /// <value>Multiply gravity when character is falling down</value>
     public float fallMultiplier = 2.5f;
-    // When release jump button and are applying more gravity so our character dosen't jump quite as high.
+    /// <value>When release jump button and are applying more gravity so our character dosen't jump quite as high.</value>
     public float lowJumpMultiplier = 2f;
-    public float slideSpeed = 5;
+    /// <value>constant slide speed in vector Y</value>
+    public float slideSpeed = 1;
+    /// <value>constant slide speed in vector Y</value>
     public float wallJumpLerp = 10;
     public float dashSpeed = 20;
 
