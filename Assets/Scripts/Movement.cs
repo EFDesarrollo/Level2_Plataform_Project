@@ -69,7 +69,7 @@ public class Movement : MonoBehaviour
     [Header("Booleans")]
     public bool canWalkNow;
     /// <value>Boolean expression that allows identifying if it meets the requirements to Jump</value>
-    public bool canJumpNow, isLeftJumpStored;
+    public bool canJumpNow; //, isLeftJumpStored
     /// <value>Boolean expression that allow to identify collisions</value>
     public bool onGround, onWall, onLeftWall, onRightWall;
     /// <value>Boolean expression that allows to identify if the mechanic is active</value>
@@ -348,14 +348,14 @@ public class Movement : MonoBehaviour
     {
         //TODO: AÑADIR UN LIMITADOR DE SALTOS PARA QUE SALTE UNA VEZ DE CADA LADO
         Vector2 wallDir = onRightWall ? Vector2.left : Vector2.right;
-        if (onWall && (isLeftJumpStored != onLeftWall || isLeftJumpStored != onLeftWall))
-        {
+        //if (onWall && (isLeftJumpStored != onLeftWall || isLeftJumpStored != onLeftWall))
+        //{
             if (wallJumped && canJumpNow)
             {
-                isLeftJumpStored = isLeftJumpStored && !onLeftWall? false : true;
+                //isLeftJumpStored = isLeftJumpStored && !onLeftWall? false : true;
                 Jump((Vector2.up / 1.5f + wallDir / 1.5f), true);
             }
-        }
+        //}
     }
     /// <summary>
     /// Wall Grab Mechanic
