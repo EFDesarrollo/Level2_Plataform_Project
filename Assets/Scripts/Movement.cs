@@ -2,6 +2,7 @@ using Newtonsoft.Json.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Movement : MonoBehaviour
 {
@@ -9,7 +10,8 @@ public class Movement : MonoBehaviour
     /// 
     /// <value>Stores the Rigidbody component of the object.</value>
     [HideInInspector]
-    public Rigidbody2D rb;
+    public Rigidbody2D _rb;
+    public Animator _anim;
 
     /// Variables related to player stats
     /// 
@@ -74,8 +76,11 @@ public class Movement : MonoBehaviour
     public bool onGround, onWall, onLeftWall, onRightWall;
     /// <value>Boolean expression that allows to identify if the mechanic is active</value>
     public bool wallGrab, wallSlide, wallJumped;
+    /// <value>Boolean expression that allows to identify which side is player pointing</value>
+    public bool _facingRight;
 
     [Header("Polish")]
+    public Color particleColor;
     public ParticleSystem jumpParticle;
     public ParticleSystem wallJumpParticle;
     public ParticleSystem slideParticle;
@@ -83,12 +88,15 @@ public class Movement : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        rb = GetComponent<Rigidbody2D>();
+        _rb = GetComponent<Rigidbody2D>();
+        _anim = GetComponent<Animator>();
+
     }
 
     // Update is called once per frame
     private void Update()
     {
+        //Debug.Log(rb.velocity);
         // Detection functions
         onGround = Physics2D.OverlapCircle((Vector2)transform.position + bottomOffset, collisionRadius, groundLayer);
         onWall = Physics2D.OverlapCircle((Vector2)transform.position + leftOffset, collisionRadius, groundLayer) || Physics2D.OverlapCircle((Vector2)transform.position + rigthOffset, collisionRadius, groundLayer);
@@ -111,10 +119,10 @@ public class Movement : MonoBehaviour
         WallSlide();
         Walk();
         // Jump Logic
-        if (onGround)
-            Jump(Vector2.up, false);
-        if (onWall)
+        if (onWall && !onGround)
             WallJump();
+        else
+            Jump(Vector2.up, false);
     }
     #region Detect
     /// <summary>
@@ -143,7 +151,7 @@ public class Movement : MonoBehaviour
     /// </remarks>
     void JumpImputDetect()
     {
-        if (Input.GetButtonDown(jumpAxis))
+        if (Input.GetButtonDown(jumpAxis) && (onGround || onWall) )
         {
             canJumpNow = true;
             wallSlide = false;
@@ -186,7 +194,9 @@ public class Movement : MonoBehaviour
     /// </remarks>
     void WallSlideDetect()
     {
-        if (onWall && !onGround)
+        if (!onWall || onGround || _rb.velocity.y > 0.2f)
+            wallSlide = false;
+        else if (onWall && !onGround)
         {
             if (Input.GetAxis(xAxis) != 0 && !wallGrab)
             {
@@ -197,8 +207,6 @@ public class Movement : MonoBehaviour
                 wallSlide = false;
             }
         }
-        if (!onWall || onGround)
-            wallSlide = false;
     }
     /// <summary>
     /// Wall Jump Detect Function.
@@ -269,18 +277,27 @@ public class Movement : MonoBehaviour
         {
             // if the move is not performed after a wall jump and
             if (canWalkNow)
+            {
                 // if met the requirements to move then change Rigidbody velocity
-                rb.velocity = new Vector2(x * speed, rb.velocity.y);
+                _rb.velocity = new Vector2(x * speed, _rb.velocity.y);
+                if (_anim != null)
+                {
+                    _anim.SetFloat("xSpeed", Mathf.Abs(x));
+                }
+            }
             else
                 // if dosen't met the requirements to move then change Rigidbody velocity to zero
-                rb.velocity = new Vector2(0, rb.velocity.y);
+                _rb.velocity = new Vector2(0, _rb.velocity.y);
         }
         else
             // if the move is performed after a wall jump Then do a
             // linearly interpolate between actual x velocity an actual xvelocity * var velocity
             // by constant wallJumpLerp
-            rb.velocity = Vector2.Lerp(rb.velocity, (new Vector2(x * speed, rb.velocity.y)), wallJumpLerp * Time.deltaTime);
-
+            _rb.velocity = Vector2.Lerp(_rb.velocity, (new Vector2(x * speed, _rb.velocity.y)), wallJumpLerp * Time.deltaTime);
+        if ((x > 0 && !_facingRight) || (x < 0 && _facingRight))
+        {
+            Flip();
+        }
     }
 
     /// <summary>
@@ -317,27 +334,25 @@ public class Movement : MonoBehaviour
         if (!canJump)
             // If is not allowed to Jump then return.
             return;
-        
         if (canJumpNow)
         {
             // If the Jump requirements are met then we apply a force on the Rigidbody in the Y axis.
             GetComponent<Rigidbody2D>().AddForce(dir * (wallJumped? jumpForce*2: jumpForce), ForceMode2D.Impulse);
             canJumpNow = false;
         }
-        if (rb.velocity.y < -0.2f)
+        if (_rb.velocity.y < -0.2f)
         {
             // If is falling then change gravity scale of rigidbody
-            rb.gravityScale = fallMultiplier;
-        } else if(rb.velocity.y > 0.2f && !Input.GetButton(jumpAxis))
+            _rb.gravityScale = fallMultiplier;
+        } else if (_rb.velocity.y > 0.2f && !Input.GetButton(jumpAxis))
         {
             // If are jumping, apply a low gravity scale if the jumpAxis button is not pressed
-            rb.gravityScale = lowJumpMultiplier;
-        }
-        else
+            _rb.gravityScale = lowJumpMultiplier;
+        }else
         {
             // in any other case Then gravity scale will be normal
             // this allow to do long jump while jumpAxis button is pressed
-            rb.gravityScale = 1f;
+            _rb.gravityScale = 1f;
         }
     }
     /// <summary>
@@ -355,6 +370,10 @@ public class Movement : MonoBehaviour
                 //isLeftJumpStored = isLeftJumpStored && !onLeftWall? false : true;
                 Jump((Vector2.up / 1.5f + wallDir / 1.5f), true);
             }
+            else
+            {
+                
+            }
         //}
     }
     /// <summary>
@@ -367,14 +386,14 @@ public class Movement : MonoBehaviour
         {
             float speedModifier = Input.GetAxis(yAxis) > 0 ? .5f : 1;
 
-            rb.gravityScale = 0;
+            _rb.gravityScale = 0;
             if (Input.GetAxis(xAxis) > .2f || Input.GetAxis(xAxis) < -.2f)
-                rb.velocity = new Vector2(rb.velocity.x, 0);
-            rb.velocity = new Vector2(rb.velocity.x, 0);
+                _rb.velocity = new Vector2(_rb.velocity.x, 0);
+            _rb.velocity = new Vector2(_rb.velocity.x, 0);
         }
-        else
+        else if (_rb.velocity.y == 0)
         {
-            rb.gravityScale = 3;
+            _rb.gravityScale = 3;
         }
     }
     /// <summary>
@@ -387,16 +406,16 @@ public class Movement : MonoBehaviour
             return;
 
         bool pushingWall = false;
-        if ((rb.velocity.x > 0 && onRightWall) || (rb.velocity.x < 0 && onLeftWall))
+        if ((_rb.velocity.x > 0 && onRightWall) || (_rb.velocity.x < 0 && onLeftWall))
         {
             pushingWall = true;
         }
-        float push = pushingWall ? 0 : rb.velocity.x;
+        float push = pushingWall ? 0 : _rb.velocity.x;
 
         if (wallSlide)
         {
 
-            rb.velocity = new Vector2(push, -slideSpeed);
+            _rb.velocity = new Vector2(push, -slideSpeed);
         }
     }
     #endregion
@@ -424,9 +443,9 @@ public class Movement : MonoBehaviour
         else
         {
             if (wallJumped)
-                wallJumpP.startColor = Color.white;
+                wallJumpP.startColor = particleColor;
             else
-                jumpP.startColor = Color.white;
+                jumpP.startColor = particleColor;
         }
     }
     void WallParticle(float vertical)
@@ -436,7 +455,7 @@ public class Movement : MonoBehaviour
         if (wallSlide || (wallGrab && vertical < 0))
         {
             slideParticle.transform.parent.localScale = new Vector3(ParticleSide(), 1, 1);
-            main.startColor = Color.white;
+            main.startColor = particleColor;
         }
         else
         {
@@ -447,5 +466,10 @@ public class Movement : MonoBehaviour
     {
         int particleSide = onLeftWall ? 1 : -1;
         return particleSide;
+    }
+    private void Flip()
+    {
+        _facingRight = !_facingRight;
+        transform.Rotate(new Vector3(0, 180, 0), Space.World);
     }
 }
